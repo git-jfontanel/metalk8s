@@ -20,12 +20,7 @@ on:
       artifact-link:
         description: "artifacts link"
         value: ${{ jobs.build.outputs.artifact-link }}
-    secrets:
-      ARTIFACTS_USER:
-        required: true
-      ARTIFACTS_PASSWORD:
-        required: true
-
+    
   workflow_dispatch:
 
 jobs:
@@ -98,13 +93,20 @@ jobs:
           done
       - name: Upload artifacts
         id: upload
-        uses: scality/action-artifacts@v4
+        uses: actions/upload-artifact@v4
         with:
-          method: upload
-          url: https://artifacts.scality.net
-          user: ${{ secrets.ARTIFACTS_USER }}
-          password: ${{ secrets.ARTIFACTS_PASSWORD }}
-          source: artifacts
+          name: metalk8s-build-${{ github.sha }}
+          path: artifacts/
+          retention-days: 90
+      
+      - name: Set artifact outputs
+        id: set-outputs
+        run: |
+          ARTIFACT_NAME="metalk8s-build-${{ github.sha }}"
+          ARTIFACT_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          echo "artifact-name=${ARTIFACT_NAME}" >> $GITHUB_OUTPUT
+          echo "artifact-link=${ARTIFACT_URL}" >> $GITHUB_OUTPUT
+      
       - name: Cleanup build tree
         run: cd "${{ github.workspace }}" && ./doit.sh clean && test ! -d _build
 
@@ -135,8 +137,28 @@ jobs:
         uses: actions/checkout@v5
       - name: Upload final status
         if: always()
-        uses: scality/actions/upload_final_status@1.13.0
+        run: |
+          echo "Build Status: ${{ needs.build.result }}"
+          echo "Shell UI Status: ${{ needs.build-shell-ui.result }}"
+          echo "Docs Status: ${{ needs.build-docs.result }}"
+          
+          # Determine overall status
+          if [[ "${{ needs.build.result }}" == "success" ]] && \
+             [[ "${{ needs.build-shell-ui.result }}" == "success" ]] && \
+             [[ "${{ needs.build-docs.result }}" == "success" ]]; then
+            echo "FINAL_STATUS=success" >> $GITHUB_ENV
+            echo "✅ All builds succeeded"
+          else
+            echo "FINAL_STATUS=failure" >> $GITHUB_ENV
+            echo "❌ Some builds failed"
+            exit 1
+          fi
+      
+      - name: Upload status artifact
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          ARTIFACTS_USER: ${{ secrets.ARTIFACTS_USER }}
-          ARTIFACTS_PASSWORD: ${{ secrets.ARTIFACTS_PASSWORD }}
-          JOBS_RESULTS: ${{ join(needs.*.result) }}
+          name: build-status-${{ github.sha }}
+          path: |
+            .github/
+          retention-days: 30

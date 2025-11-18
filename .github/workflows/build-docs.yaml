@@ -13,12 +13,7 @@ on:
         default: false
         required: false
         type: boolean
-    secrets:
-      ARTIFACTS_USER:
-        required: true
-      ARTIFACTS_PASSWORD:
-        required: true
-
+ 
 jobs:
   build-devcontainer:
     uses: ./.github/workflows/build-devcontainer.yaml
@@ -64,10 +59,8 @@ jobs:
       - name: Copy generated docs with Scality theme
         run: cp -r docs/_build/* artifacts/docs/ && cp CHANGELOG.md artifacts/docs/
       - name: Upload artifacts
-        uses: scality/action-artifacts@v4
+        uses: actions/upload-artifact@v4
         with:
-          method: upload
-          url: https://artifacts.scality.net
-          user: ${{ secrets.ARTIFACTS_USER }}
-          password: ${{ secrets.ARTIFACTS_PASSWORD }}
-          source: artifacts
+          name: metalk8s-docs-${{ github.sha }}
+          path: artifacts/
+          retention-days: 90

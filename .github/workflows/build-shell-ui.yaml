@@ -61,18 +61,12 @@ jobs:
           cd shell-ui
           syft scan dir:./ --source-name=shell-ui --source-version "$SHELL_UI_VERSION" --output cyclonedx-json=../shell.tar.sbom.spdx.json
 
-      - name: Prepare artifacts
-        run: |
-          mkdir -p "artifacts/images"
-          mv shell-ui.tar.gz artifacts/images/
-          mv shell.tar artifacts/images/
-          mv shell.tar.sbom.spdx.json artifacts/images/
-
       - name: Upload artifacts
-        uses: scality/action-artifacts@v4
+        uses: actions/upload-artifact@v4
         with:
-          method: upload
-          url: https://artifacts.scality.net
-          user: ${{ secrets.ARTIFACTS_USER }}
-          password: ${{ secrets.ARTIFACTS_PASSWORD }}
-          source: artifacts
+          name: shell-ui-v${{ env.SHELL_UI_VERSION }}
+          path: |
+            shell-ui.tar.gz
+            shell.tar
+            shell.tar.sbom.spdx.json
+          retention-days: 90
